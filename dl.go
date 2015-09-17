@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -21,6 +20,7 @@ type TaskConfig struct {
 	MaxSpeed int64
 	Clean    bool
 	Progress bool
+	Proxy    []string
 }
 
 func (t *TaskConfig) init() {
@@ -88,7 +88,7 @@ func NewDnTask(url_, pwd string, bit uint, cfg *TaskConfig) (*DnTask, error) {
 		os.Remove(dn.Meta.targetPath())
 	}
 
-	if err = dn.Meta.retrieveFromDisk(); err != nil {
+	if err = dn.Meta.retrieveFromDisk(cfg.Proxy); err != nil {
 		dn.Meta.Remove()
 		return nil, logex.Trace(err)
 	}
@@ -218,14 +218,9 @@ func (d *DnTask) httpDn(client *http.Client, req *http.Request, op *writeOp, sta
 	return written, nil
 }
 
-func (d *DnTask) proxyGet(client *http.Client, idx int, op *writeOp, start, end int64) (int64, error) {
-	prefix := ""
-	arg := url.Values{
-		"url":   {d.Meta.Source},
-		"start": {strconv.FormatInt(start, 10)},
-		"end":   {strconv.FormatInt(end, 10)},
-	}
-	req, err := http.NewRequest("GET", prefix+"?"+arg.Encode(), nil)
+func (d *DnTask) proxyGet(client *http.Client, host string, idx int, op *writeOp, start, end int64) (int64, error) {
+	proxy := proxyUrl(host, d.Meta.Source, start, end)
+	req, err := http.NewRequest("GET", proxy, nil)
 	if err != nil {
 		return 0, logex.Trace(err)
 	}
@@ -246,7 +241,7 @@ func (d *DnTask) httpGet(client *http.Client, idx int, op *writeOp, start, end i
 	return d.httpDn(client, req, op, start, end)
 }
 
-func (d *DnTask) download() {
+func (d *DnTask) download(t *DnType) {
 	var (
 		idx        int
 		start, end int64
@@ -272,7 +267,11 @@ func (d *DnTask) download() {
 		if idx < 0 {
 			break
 		}
-		_, err := d.httpGet(client, idx, op, start, end)
+		if t.Proxy == "" {
+			_, err = d.httpGet(client, idx, op, start, end)
+		} else {
+			_, err = d.proxyGet(client, t.Proxy, idx, op, start, end)
+		}
 		if err != nil {
 			if retry > maxRetry {
 				logex.Error(err)
@@ -287,6 +286,14 @@ func (d *DnTask) download() {
 	}
 }
 
+type DnType struct {
+	Proxy string
+}
+
+func NewDnType(host string) *DnType {
+	return &DnType{host}
+}
+
 func (d *DnTask) Schedule(n int) {
 	if !d.Meta.IsAccpetRange() {
 		n = 1
@@ -296,11 +303,22 @@ func (d *DnTask) Schedule(n int) {
 		logex.Info("remote file size is too small to use", n, "threads, decrease to", len(d.Meta.Blocks))
 		n = len(d.Meta.Blocks)
 	}
+
+	types := make([]*DnType, len(d.Proxy)+1)
+	for i := 0; i < len(types); i++ {
+		if i == len(types)-1 {
+			types[i] = NewDnType("")
+		} else {
+			types[i] = NewDnType(d.Proxy[i-1])
+		}
+	}
+
 	var wg sync.WaitGroup
 	for i := 0; i < n; i++ {
 		wg.Add(1)
+		i := i
 		go func() {
-			d.download()
+			d.download(types[i%len(types)])
 			wg.Done()
 		}()
 	}

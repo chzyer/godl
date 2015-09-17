@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -143,8 +144,53 @@ func (m *Meta) parseDisposition(dispositions []string) {
 	}
 }
 
-func (m *Meta) retrieveFromHead() error {
-	resp, err := http.Head(m.Source)
+func (m *Meta) headReq(proxy []string) (*http.Response, error) {
+	var ret *http.Response
+	var mutex sync.Mutex
+	var errInfo []string
+	finish := make(chan struct{})
+	for i := -1; i < len(proxy); i++ {
+		i := i
+		go func() {
+			var resp *http.Response
+			var err error
+			if i == -1 {
+				println(m.Source)
+				resp, err = http.Head(m.Source)
+			} else {
+				println(proxyUrl(proxy[i], m.Source, -1, -1))
+				resp, err = http.Head(proxyUrl(proxy[i], m.Source, -1, -1))
+			}
+			if err != nil {
+				mutex.Lock()
+				errInfo = append(errInfo, err.Error())
+				if len(errInfo) == len(proxy)+1 {
+					finish <- struct{}{}
+				}
+				mutex.Unlock()
+				return
+			}
+			mutex.Lock()
+			if ret != nil {
+				ret = resp
+				finish <- struct{}{}
+				mutex.Unlock()
+				return
+			}
+			mutex.Unlock()
+			resp.Body.Close()
+		}()
+	}
+
+	<-finish
+	if ret != nil {
+		return ret, nil
+	}
+	return nil, errors.New(strings.Join(errInfo, ";"))
+}
+
+func (m *Meta) retrieveFromHead(proxy []string) error {
+	resp, err := m.headReq(proxy)
 	if err != nil {
 		return logex.Trace(err)
 	}
@@ -162,9 +208,9 @@ func (m *Meta) retrieveFromHead() error {
 	return nil
 }
 
-func (m *Meta) retrieveFromDisk() (err error) {
+func (m *Meta) retrieveFromDisk(proxy []string) (err error) {
 	if m.header == nil {
-		if err = m.retrieveFromHead(); err != nil {
+		if err = m.retrieveFromHead(proxy); err != nil {
 			return logex.Trace(err)
 		}
 	}

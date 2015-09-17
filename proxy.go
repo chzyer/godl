@@ -3,6 +3,7 @@ package main
 import (
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"gopkg.in/logex.v1"
@@ -18,8 +19,21 @@ type ProxyConfig struct {
 	End   int64
 }
 
-func proxyDo(p *ProxyConfig) (io.ReadCloser, int, error) {
-	req, err := http.NewRequest("GET", p.Url, nil)
+func proxyUrl(host, source string, start, end int64) string {
+	u := url.Values{
+		"url": {source},
+	}
+	if start < 0 {
+		u.Add("start", strconv.FormatInt(start, 10))
+	}
+	if end < 0 {
+		u.Add("end", strconv.FormatInt(end, 10))
+	}
+	return "http://" + host + "/proxy?" + u.Encode()
+}
+
+func proxyDo(method string, p *ProxyConfig, h http.Header) (io.ReadCloser, int, error) {
+	req, err := http.NewRequest(method, p.Url, nil)
 	if err != nil {
 		return nil, 400, logex.Trace(err)
 	}
@@ -30,6 +44,12 @@ func proxyDo(p *ProxyConfig) (io.ReadCloser, int, error) {
 	if err != nil {
 		return nil, 400, logex.Trace(err)
 	}
+	for k, v := range resp.Header {
+		for _, vv := range v {
+			h.Add(k, vv)
+		}
+	}
+
 	switch resp.StatusCode {
 	case 206:
 		return resp.Body, resp.StatusCode, nil
@@ -47,7 +67,7 @@ func proxyHandler(w http.ResponseWriter, req *http.Request) {
 	cfg.Start, _ = strconv.ParseInt(req.FormValue("start"), 10, 64)
 	cfg.End, _ = strconv.ParseInt(req.FormValue("end"), 10, 64)
 
-	rc, code, err := proxyDo(cfg)
+	rc, code, err := proxyDo(req.Method, cfg, w.Header())
 	if err != nil {
 		http.Error(w, err.Error(), code)
 		return

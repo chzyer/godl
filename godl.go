@@ -12,15 +12,15 @@ import (
 )
 
 type Config struct {
-	// Proxy     []string
-	Server    string `flag:"s;usage=godl will enter server mode if specified listen addr with -s"`
-	Overwrite bool   `flag:"f;usage=overwritten if file is exists, false mean resume the progress from the meta file"`
-	MaxSpeed  int64  `flag:"max;usage=max speed"`
-	ConnSize  int    `flag:"n;def=5;usage=specified the max connections connected"`
-	BlockBit  uint   `flag:"b;max=22;def=20;usage=block size represented by bit"`
+	Proxy     []string `flag:"p;usage=proxy"`
+	Server    string   `flag:"s;usage=godl will enter server mode if specified listen addr with -s"`
+	Overwrite bool     `flag:"f;usage=overwritten if file is exists, false mean resume the progress from the meta file"`
+	MaxSpeed  int64    `flag:"max;usage=max speed"`
+	ConnSize  int      `flag:"n;def=5;usage=specified the max connections connected"`
+	BlockBit  uint     `flag:"b;max=22;def=20;usage=block size represented by bit"`
 
 	Meta     bool `flag:"usage=print meta"`
-	Progress bool `flag:"p;def=true;usage=show progress"`
+	Progress bool `flag:"np;def=true;usage=show progress"`
 	Debug    bool `flag:"v;usage=turn on debug mode"`
 
 	Url2 string `flag:"u;usage=url, same as specified at arg"`
@@ -48,6 +48,7 @@ func singleDn(c *Config, cwd string) {
 		Clean:    c.Overwrite,
 		MaxSpeed: c.MaxSpeed,
 		Progress: c.Progress,
+		Proxy:    c.Proxy,
 	}
 	task, err := NewDnTaskAuto(c.Url, cwd, c.BlockBit, tcfg)
 	if err != nil {
