@@ -155,10 +155,8 @@ func (m *Meta) headReq(proxy []string) (*http.Response, error) {
 			var resp *http.Response
 			var err error
 			if i == -1 {
-				println(m.Source)
 				resp, err = http.Head(m.Source)
 			} else {
-				println(proxyUrl(proxy[i], m.Source, -1, -1))
 				resp, err = http.Head(proxyUrl(proxy[i], m.Source, -1, -1))
 			}
 			if err != nil {
@@ -171,11 +169,9 @@ func (m *Meta) headReq(proxy []string) (*http.Response, error) {
 				return
 			}
 			mutex.Lock()
-			if ret != nil {
+			if ret == nil {
 				ret = resp
 				finish <- struct{}{}
-				mutex.Unlock()
-				return
 			}
 			mutex.Unlock()
 			resp.Body.Close()

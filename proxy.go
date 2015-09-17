@@ -23,10 +23,10 @@ func proxyUrl(host, source string, start, end int64) string {
 	u := url.Values{
 		"url": {source},
 	}
-	if start < 0 {
+	if start >= 0 {
 		u.Add("start", strconv.FormatInt(start, 10))
 	}
-	if end < 0 {
+	if end > 0 {
 		u.Add("end", strconv.FormatInt(end, 10))
 	}
 	return "http://" + host + "/proxy?" + u.Encode()

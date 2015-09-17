@@ -309,7 +309,7 @@ func (d *DnTask) Schedule(n int) {
 		if i == len(types)-1 {
 			types[i] = NewDnType("")
 		} else {
-			types[i] = NewDnType(d.Proxy[i-1])
+			types[i] = NewDnType(d.Proxy[i])
 		}
 	}
 
