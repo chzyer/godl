@@ -50,13 +50,25 @@ func (m *Meta) CopyFrom(mm *Meta) {
 	m.file = mm.file
 	m.enc = mm.enc
 	m.header = mm.header
-	m.BlkSize = mm.BlkSize
 }
 
 type Blocks []*Block
 
 func (b Blocks) String() string {
 	return fmt.Sprintf("<block:%v>", len(b))
+}
+
+func NewMetaFormFile(target string) (*Meta, error) {
+	f, err := os.Open(target)
+	if err != nil {
+		return nil, logex.Trace(err)
+	}
+	defer f.Close()
+	m := new(Meta)
+	if err := m.Decode(f); err != nil {
+		return nil, logex.Trace(err)
+	}
+	return m, nil
 }
 
 func NewMeta(pwd, source string, bit uint, cln bool) (*Meta, error) {
@@ -181,12 +193,17 @@ func (m *Meta) retrieveFromDisk() (err error) {
 		return logex.Trace(err)
 	}
 
+	if diskMeta.BlkBit != m.BlkBit {
+		logex.Info("blksize change to", diskMeta.BlkBit)
+	}
+
 	if diskMeta.Etag != m.Etag {
 		logex.Info("etag not matched, redownload", diskMeta.Etag, m.Etag)
 		return nil
 	}
 
 	diskMeta.CopyFrom(m)
+	diskMeta.BlkSize = 1 << diskMeta.BlkBit
 	*m = *diskMeta
 	return nil
 }
@@ -260,8 +277,8 @@ func NewBlock() *Block {
 }
 
 type BlkOff struct {
-	Offset  int
-	Written int
+	Offset  int `json:"o"`
+	Written int `json:"w"`
 }
 
 func (m *Meta) BlkCnt() int {

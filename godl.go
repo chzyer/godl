@@ -23,7 +23,7 @@ type Config struct {
 	Progress bool `flag:"p;def=true;usage=show progress"`
 	Debug    bool `flag:"v;usage=turn on debug mode"`
 
-	Url2 string `flag:"u;usage=url"`
+	Url2 string `flag:"u;usage=url, same as specified at arg"`
 	Url  string `flag:"[0];usage=url"`
 
 	obj *flagx.Object
@@ -49,7 +49,7 @@ func singleDn(c *Config, cwd string) {
 		MaxSpeed: c.MaxSpeed,
 		Progress: c.Progress,
 	}
-	task, err := NewDnTask(c.Url, cwd, c.BlockBit, tcfg)
+	task, err := NewDnTaskAuto(c.Url, cwd, c.BlockBit, tcfg)
 	if err != nil {
 		logex.Fatal(err)
 	}

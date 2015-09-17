@@ -45,6 +45,17 @@ type DnTask struct {
 	l *Liner
 }
 
+func NewDnTaskAuto(url_, pwd string, bit uint, cfg *TaskConfig) (*DnTask, error) {
+	_, err := os.Stat(url_)
+	if !cfg.Clean && err == nil {
+		if meta, _ := NewMetaFormFile(url_); meta != nil {
+			logex.Info("downloading form", meta.Source)
+			return NewDnTask(meta.Source, pwd, meta.BlkBit, cfg)
+		}
+	}
+	return NewDnTask(url_, pwd, bit, cfg)
+}
+
 func NewDnTask(url_, pwd string, bit uint, cfg *TaskConfig) (*DnTask, error) {
 	if url_ == "" {
 		return nil, logex.NewError("url is empty")
@@ -78,6 +89,7 @@ func NewDnTask(url_, pwd string, bit uint, cfg *TaskConfig) (*DnTask, error) {
 	}
 
 	if err = dn.Meta.retrieveFromDisk(); err != nil {
+		dn.Meta.Remove()
 		return nil, logex.Trace(err)
 	}
 
