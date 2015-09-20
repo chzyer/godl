@@ -44,12 +44,13 @@ func proxyDo(method string, p *ProxyConfig, h http.Header) (io.ReadCloser, int, 
 	if err != nil {
 		return nil, 400, logex.Trace(err)
 	}
+
+	resp.Header.Set(H_SOURCE, resp.Request.URL.String())
 	for k, v := range resp.Header {
 		for _, vv := range v {
 			h.Add(k, vv)
 		}
 	}
-	resp.Header.Set(H_SOURCE, resp.Request.URL.String())
 
 	switch resp.StatusCode {
 	case 206:
