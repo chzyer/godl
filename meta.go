@@ -27,6 +27,7 @@ const (
 	H_CONTENT_LENGTH      = "Content-Length"
 	H_CONTENT_DISPOSITION = "Content-Disposition"
 	H_RANGE               = "Range"
+	H_SOURCE              = "X-Source"
 )
 
 type Meta struct {
@@ -160,6 +161,9 @@ func (m *Meta) headReq(proxy []string) (*http.Response, error) {
 				resp, err = http.Head(m.Source)
 			} else {
 				resp, err = http.Head(proxyUrl(proxy[i], m.Source, -1, -1))
+				if resp != nil {
+					resp.Request.URL, _ = url.Parse(resp.Header.Get(H_SOURCE))
+				}
 			}
 			if err != nil {
 				mutex.Lock()

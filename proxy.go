@@ -49,6 +49,7 @@ func proxyDo(method string, p *ProxyConfig, h http.Header) (io.ReadCloser, int, 
 			h.Add(k, vv)
 		}
 	}
+	resp.Header.Set(H_SOURCE, resp.Request.URL.String())
 
 	switch resp.StatusCode {
 	case 206:
@@ -73,6 +74,7 @@ func proxyHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	defer rc.Close()
+	w.WriteHeader(code)
 	_, err = io.Copy(w, rc)
 	if err != nil {
 		logex.Error(err)
