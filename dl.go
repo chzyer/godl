@@ -221,7 +221,6 @@ func (d *DnTask) httpDn(client *http.Client, req *http.Request, op *writeOp, sta
 			resp.ContentLength, written,
 			req.Header, resp.Status, req.URL,
 		)
-		panic(1)
 	}
 	io.Copy(ioutil.Discard, rc)
 	return written, nil
