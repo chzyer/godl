@@ -40,7 +40,7 @@ func proxyDo(method string, p *ProxyConfig, h http.Header) (io.ReadCloser, int, 
 	if p.Start >= 0 {
 		setRange(req.Header, p.Start, p.End)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := DefaultClient.Do(req)
 	if err != nil {
 		return nil, 400, logex.Trace(err)
 	}

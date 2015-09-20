@@ -33,6 +33,7 @@ type Meta struct {
 	Pwd      string
 	Name     string
 	Source   string
+	EndPoint string
 	Etag     string
 	FileSize int64
 	BlkBit   uint
@@ -72,15 +73,16 @@ func NewMetaFormFile(target string) (*Meta, error) {
 	return m, nil
 }
 
-func NewMeta(pwd, source string, bit uint, cln bool) (*Meta, error) {
-	u, _ := url.Parse(source)
+func NewMeta(pwd, endPoint string, bit uint, cln bool) (*Meta, error) {
+	u, _ := url.Parse(endPoint)
 
 	m := &Meta{
-		Pwd:     pwd,
-		Name:    path.Base(u.Path),
-		Source:  source,
-		BlkBit:  bit,
-		BlkSize: 1 << bit,
+		Pwd:      pwd,
+		Name:     path.Base(u.Path),
+		Source:   endPoint,
+		EndPoint: endPoint,
+		BlkBit:   bit,
+		BlkSize:  1 << bit,
 	}
 	if err := m.openFile(cln); err != nil {
 		return nil, logex.Trace(err)
@@ -191,6 +193,7 @@ func (m *Meta) retrieveFromHead(proxy []string) error {
 		return logex.Trace(err)
 	}
 	m.header = resp.Header
+	m.Source = resp.Request.URL.String()
 
 	size, err := strconv.ParseInt(m.header.Get(H_CONTENT_LENGTH), 10, 64)
 	if err != nil {
@@ -224,7 +227,7 @@ func (m *Meta) retrieveFromDisk(proxy []string) (err error) {
 	}
 	defer f.Close()
 
-	diskMeta, err := NewMeta(m.Pwd, m.Source, m.BlkBit, false)
+	diskMeta, err := NewMeta(m.Pwd, m.EndPoint, m.BlkBit, false)
 	if err != nil {
 		panic(err)
 	}
@@ -334,7 +337,7 @@ func (m *Meta) BlkCnt() int {
 func (m *Meta) headers() []interface{} {
 	return []interface{}{
 		&m.Pwd, &m.Name, &m.Etag, &m.Source,
-		&m.FileSize, &m.BlkBit,
+		&m.FileSize, &m.BlkBit, &m.EndPoint,
 	}
 }
 

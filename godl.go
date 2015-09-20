@@ -45,11 +45,13 @@ func singleDn(c *Config, cwd string) {
 		return
 	}
 	tcfg := &TaskConfig{
-		Clean:    c.Overwrite,
-		MaxSpeed: c.MaxSpeed,
-		Progress: c.Progress,
-		Proxy:    c.Proxy,
+		Clean:      c.Overwrite,
+		MaxSpeed:   c.MaxSpeed,
+		Progress:   c.Progress,
+		Proxy:      c.Proxy,
+		ShowRealSp: c.Debug,
 	}
+
 	task, err := NewDnTaskAuto(c.Url, cwd, c.BlockBit, tcfg)
 	if err != nil {
 		logex.Fatal(err)

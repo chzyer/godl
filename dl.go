@@ -16,11 +16,14 @@ import (
 	"gopkg.in/logex.v1"
 )
 
+var DefaultClient = &http.Client{}
+
 type TaskConfig struct {
-	MaxSpeed int64
-	Clean    bool
-	Progress bool
-	Proxy    []string
+	MaxSpeed   int64
+	Clean      bool
+	Progress   bool
+	ShowRealSp bool
+	Proxy      []string
 }
 
 func (t *TaskConfig) init() {
@@ -53,6 +56,7 @@ func NewDnTaskAuto(url_, pwd string, bit uint, cfg *TaskConfig) (*DnTask, error)
 			return NewDnTask(meta.Source, pwd, meta.BlkBit, cfg)
 		}
 	}
+
 	return NewDnTask(url_, pwd, bit, cfg)
 }
 
@@ -203,18 +207,22 @@ func (d *DnTask) httpDn(client *http.Client, req *http.Request, op *writeOp, sta
 	if err != nil {
 		return 0, logex.Trace(err)
 	}
-	defer resp.Body.Close()
+	rc := NewReader(resp.Body)
+	defer rc.Close()
 
-	r := bufio.NewReader(resp.Body)
+	r := bufio.NewReader(rc)
 	w := NewFileWriter(d, start, op, d.writeOp, d.onWriteFunc)
 	written, err := io.CopyN(w, r, end-start)
 	if err != nil {
 		return written, logex.Trace(err)
 	}
-	n, _ := io.Copy(ioutil.Discard, resp.Body)
-	if n > 0 {
-		logex.Info(n)
+	if resp.ContentLength != written {
+		logex.Error("ContentLength is not expected:",
+			resp.ContentLength, written,
+			req.Header, resp.Status,
+		)
 	}
+	io.Copy(ioutil.Discard, rc)
 	return written, nil
 }
 
@@ -248,14 +256,13 @@ func (d *DnTask) download(t *DnType) {
 		err        error
 		retry      int
 
-		client   = &http.Client{}
 		maxRetry = 3
 		op       = new(writeOp)
 	)
 	op.Reply = make(chan *writeOpReply)
 
 	if !d.Meta.IsAccpetRange() {
-		_, err = d.httpGet(client, -1, op, -1, -1)
+		_, err = d.httpGet(DefaultClient, -1, op, -1, -1)
 		if err != nil {
 			logex.Error(err)
 		}
@@ -268,9 +275,9 @@ func (d *DnTask) download(t *DnType) {
 			break
 		}
 		if t.Proxy == "" {
-			_, err = d.httpGet(client, idx, op, start, end)
+			_, err = d.httpGet(DefaultClient, idx, op, start, end)
 		} else {
-			_, err = d.proxyGet(client, t.Proxy, idx, op, start, end)
+			_, err = d.proxyGet(DefaultClient, t.Proxy, idx, op, start, end)
 		}
 		if err != nil {
 			if retry > maxRetry {
@@ -376,15 +383,22 @@ func (t *DnTask) progress() {
 		if t.MaxSpeed > 0 {
 			t.rateLimit.Reset()
 		}
+		realDn := atomic.SwapInt64(&report, 0)
+
+		extend := "\b"
+		if t.ShowRealSp {
+			extend += fmt.Sprintf(" RL:%v", calUnit(realDn))
+		}
 
 		if t.Progress {
-			t.l.Print(fmt.Sprintf("[%v/%v(%v%%) DL:%v TIME:%v ETA:%v]",
+			t.l.Print(fmt.Sprintf("[%v/%v(%v%%) DL:%v TIME:%v ETA:%v %v]",
 				calUnit(written),
 				size,
 				calProgress(written, fileSize),
 				calUnit(written-lastWritten),
 				calTime(time.Now().Sub(t.start)),
 				calTime(calRemainTime(fileSize-written, totalSp/totalN)),
+				extend,
 			))
 		}
 		lastWritten = written

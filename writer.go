@@ -1,6 +1,11 @@
 package main
 
-import "gopkg.in/logex.v1"
+import (
+	"io"
+	"sync/atomic"
+
+	"gopkg.in/logex.v1"
+)
 
 type onWriteFunc func(int64, int) error
 
@@ -40,4 +45,30 @@ func (w *FileWriter) Write(buf []byte) (int, error) {
 	}
 	err := w.onWrite(w.Offset, reply.N)
 	return reply.N, logex.Trace(err)
+}
+
+var report int64
+
+type Reader struct {
+	r      io.Reader
+	closed int64
+}
+
+func NewReader(r io.Reader) *Reader {
+	rr := &Reader{r: r}
+	return rr
+}
+
+func (r *Reader) Read(b []byte) (int, error) {
+	n, err := r.r.Read(b)
+	atomic.AddInt64(&report, int64(n))
+	return n, err
+}
+
+func (r *Reader) Close() error {
+	if rc := r.r.(io.ReadCloser); rc != nil {
+		return rc.Close()
+	}
+	atomic.StoreInt64(&report, 1)
+	return nil
 }
