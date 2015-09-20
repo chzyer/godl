@@ -219,7 +219,7 @@ func (d *DnTask) httpDn(client *http.Client, req *http.Request, op *writeOp, sta
 	if resp.ContentLength != written {
 		logex.Error("ContentLength is not expected:",
 			resp.ContentLength, written,
-			req.Header, resp.Status,
+			req.Header, resp.Status, req.URL,
 		)
 		panic(1)
 	}
@@ -229,7 +229,6 @@ func (d *DnTask) httpDn(client *http.Client, req *http.Request, op *writeOp, sta
 
 func (d *DnTask) proxyGet(client *http.Client, host string, idx int, op *writeOp, start, end int64) (int64, error) {
 	proxy := proxyUrl(host, d.Meta.Source, start, end)
-	logex.Info(host, idx, start, end, proxy)
 	req, err := http.NewRequest("GET", proxy, nil)
 	if err != nil {
 		return 0, logex.Trace(err)
