@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -23,6 +24,7 @@ type TaskConfig struct {
 	Clean      bool
 	Progress   bool
 	ShowRealSp bool
+	Headers    []string
 	Proxy      []string
 }
 
@@ -240,6 +242,11 @@ func (d *DnTask) httpGet(client *http.Client, idx int, op *writeOp, start, end i
 	if err != nil {
 		panic(err)
 	}
+	for _, h := range d.Headers {
+		if idx := strings.Index(h, ":"); idx > 0 {
+			req.Header.Set(h[:idx], strings.TrimSpace(h[idx+1:]))
+		}
+	}
 
 	if idx >= 0 {
 		setRange(req.Header, start, end)
@@ -280,7 +287,7 @@ func (d *DnTask) download(t *DnType) {
 			_, err = d.proxyGet(DefaultClient, t.Proxy, idx, op, start, end)
 		}
 		if err != nil {
-			if retry > maxRetry {
+			if retry > maxRetry && !logex.Equal(err, io.EOF) {
 				logex.Error(err)
 				return
 			}
@@ -302,7 +309,7 @@ func NewDnType(host string) *DnType {
 }
 
 func (d *DnTask) Schedule(n int) {
-	if !d.Meta.IsAccpetRange() {
+	if false && !d.Meta.IsAccpetRange() {
 		n = 1
 		logex.Info("range is not acceptable, turn to single thread")
 	}

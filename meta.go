@@ -127,20 +127,27 @@ func (m *Meta) targetPath() string {
 }
 
 func (m *Meta) parseDisposition(dispositions []string) {
-	prefix := `filename="`
+	prefix := `filename=`
 	for _, d := range dispositions {
 		start := strings.Index(d, prefix)
 		if start < 0 {
 			continue
 		}
 		start += len(prefix)
-		end := strings.Index(d[start:], `"`)
-		if end <= 0 {
-			continue
+		name := d[start:]
+		end := strings.Index(name, `"`)
+		if end > 0 {
+			name = name[:end]
 		}
-		fileName, err := strconv.Unquote(d[start-1 : end+1])
+		if len(name) > 0 && name[0] != '"' {
+			name = `"` + name + `"`
+		}
+		fileName, err := strconv.Unquote(name)
 		if err != nil {
 			continue
+		}
+		if urlDecode, err := url.QueryUnescape(fileName); err == nil {
+			fileName = urlDecode
 		}
 		m.Name = fileName
 		return
@@ -202,6 +209,7 @@ func (m *Meta) retrieveFromHead(proxy []string) error {
 	size, err := strconv.ParseInt(m.header.Get(H_CONTENT_LENGTH), 10, 64)
 	if err != nil {
 		logex.Error(err)
+		return logex.Trace(err)
 	}
 	if size > 0 {
 		m.setFileSize(size)
