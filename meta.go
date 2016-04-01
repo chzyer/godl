@@ -206,14 +206,17 @@ func (m *Meta) retrieveFromHead(proxy []string) error {
 	m.header = resp.Header
 	m.Source = resp.Request.URL.String()
 
-	size, err := strconv.ParseInt(m.header.Get(H_CONTENT_LENGTH), 10, 64)
-	if err != nil {
-		logex.Error(err)
-		return logex.Trace(err)
+	if m.header.Get(H_CONTENT_LENGTH) != "" {
+		size, err := strconv.ParseInt(m.header.Get(H_CONTENT_LENGTH), 10, 64)
+		if err != nil {
+			logex.Error(err)
+			return logex.Trace(err)
+		}
+		if size > 0 {
+			m.setFileSize(size)
+		}
 	}
-	if size > 0 {
-		m.setFileSize(size)
-	}
+
 	m.parseDisposition(m.header[H_CONTENT_DISPOSITION])
 	m.Etag = m.header.Get(H_ETAG)
 	return nil

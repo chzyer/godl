@@ -420,6 +420,9 @@ func calRemainTime(remain int64, speed int64) time.Duration {
 }
 
 func calProgress(a, b int64) int64 {
+	if b == 0 {
+		return -1
+	}
 	return int64(a * 100 / b)
 }
 
