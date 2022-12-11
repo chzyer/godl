@@ -40,7 +40,7 @@ func proxyDo(method string, p *ProxyConfig, userAgent string, h http.Header) (io
 		return nil, 400, logex.Trace(err)
 	}
 	req.Header.Set("User-Agent", userAgent)
-	if p.Start >= 0 {
+	if p.Start >= 0 && p.End != 0 {
 		setRange(req.Header, p.Start, p.End)
 	}
 	resp, err := DefaultClient.Do(req)

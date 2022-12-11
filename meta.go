@@ -197,7 +197,9 @@ func (m *Meta) headReq(proxy []string, userAgent string) (*http.Response, error)
 				finish <- struct{}{}
 			}
 			mutex.Unlock()
-			resp.Body.Close()
+			if resp != nil {
+				resp.Body.Close()
+			}
 		}()
 	}
 
