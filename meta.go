@@ -154,7 +154,7 @@ func (m *Meta) parseDisposition(dispositions []string) {
 	}
 }
 
-func (m *Meta) headReq(proxy []string) (*http.Response, error) {
+func (m *Meta) headReq(proxy []string, userAgent string) (*http.Response, error) {
 	var ret *http.Response
 	var mutex sync.Mutex
 	var errInfo []string
@@ -165,9 +165,19 @@ func (m *Meta) headReq(proxy []string) (*http.Response, error) {
 			var resp *http.Response
 			var err error
 			if i == -1 {
-				resp, err = http.Head(m.Source)
+				req, err := http.NewRequest("HEAD", m.Source, nil)
+				if err != nil {
+					panic(err)
+				}
+				req.Header.Set("User-Agent", userAgent)
+				resp, err = http.DefaultClient.Do(req)
 			} else {
-				resp, err = http.Head(proxyUrl(proxy[i], m.Source, -1, -1))
+				req, err := http.NewRequest("HEAD", proxyUrl(proxy[i], m.Source, -1, -1), nil)
+				if err != nil {
+					panic(err)
+				}
+				req.Header.Set("User-Agent", userAgent)
+				resp, err = http.DefaultClient.Do(req)
 				if resp != nil {
 					resp.Request.URL, _ = url.Parse(resp.Header.Get(H_SOURCE))
 				}
@@ -198,8 +208,8 @@ func (m *Meta) headReq(proxy []string) (*http.Response, error) {
 	return nil, errors.New(strings.Join(errInfo, ";"))
 }
 
-func (m *Meta) retrieveFromHead(proxy []string) error {
-	resp, err := m.headReq(proxy)
+func (m *Meta) retrieveFromHead(proxy []string, userAgent string) error {
+	resp, err := m.headReq(proxy, userAgent)
 	if err != nil {
 		return logex.Trace(err)
 	}
@@ -222,9 +232,9 @@ func (m *Meta) retrieveFromHead(proxy []string) error {
 	return nil
 }
 
-func (m *Meta) retrieveFromDisk(proxy []string) (err error) {
+func (m *Meta) retrieveFromDisk(proxy []string, userAgent string) (err error) {
 	if m.header == nil {
-		if err = m.retrieveFromHead(proxy); err != nil {
+		if err = m.retrieveFromHead(proxy, userAgent); err != nil {
 			return logex.Trace(err)
 		}
 	}

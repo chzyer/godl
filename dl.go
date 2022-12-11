@@ -20,6 +20,7 @@ import (
 var DefaultClient = &http.Client{}
 
 type TaskConfig struct {
+	UserAgent  string
 	MaxSpeed   int64
 	Clean      bool
 	Progress   bool
@@ -94,7 +95,7 @@ func NewDnTask(url_, pwd string, bit uint, cfg *TaskConfig) (*DnTask, error) {
 		os.Remove(dn.Meta.targetPath())
 	}
 
-	if err = dn.Meta.retrieveFromDisk(cfg.Proxy); err != nil {
+	if err = dn.Meta.retrieveFromDisk(cfg.Proxy, cfg.UserAgent); err != nil {
 		dn.Meta.Remove()
 		return nil, logex.Trace(err)
 	}
@@ -219,10 +220,7 @@ func (d *DnTask) httpDn(client *http.Client, req *http.Request, op *writeOp, sta
 		return written, logex.Trace(err)
 	}
 	if resp.ContentLength != written {
-		logex.Error("ContentLength is not expected:",
-			resp.ContentLength, written,
-			req.Header, resp.Status, req.URL,
-		)
+		logex.Errorf("ContentLength is not expected: got %v, want: %v, range:%v,%v", resp.ContentLength, written, start, end)
 	}
 	io.Copy(ioutil.Discard, rc)
 	return written, nil
@@ -234,6 +232,7 @@ func (d *DnTask) proxyGet(client *http.Client, host string, idx int, op *writeOp
 	if err != nil {
 		return 0, logex.Trace(err)
 	}
+	req.Header.Set("User-Agent", d.UserAgent)
 	return d.httpDn(client, req, op, start, end)
 }
 
@@ -242,6 +241,7 @@ func (d *DnTask) httpGet(client *http.Client, idx int, op *writeOp, start, end i
 	if err != nil {
 		panic(err)
 	}
+	req.Header.Set("User-Agent", d.UserAgent)
 	for _, h := range d.Headers {
 		if idx := strings.Index(h, ":"); idx > 0 {
 			req.Header.Set(h[:idx], strings.TrimSpace(h[idx+1:]))

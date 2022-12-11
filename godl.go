@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"runtime"
 	"syscall"
 
 	"github.com/chzyer/flagx"
@@ -12,6 +11,7 @@ import (
 )
 
 type Config struct {
+	UserAgent string   `flag:"u;def=curl;usage=user agent"`
 	Proxy     []string `flag:"p;usage=proxy"`
 	Server    string   `flag:"s;usage=godl will enter server mode if specified listen addr with -s"`
 	Overwrite bool     `flag:"f;usage=overwritten if file is exists, false mean resume the progress from the meta file"`
@@ -46,6 +46,7 @@ func singleDn(c *Config, cwd string) {
 		return
 	}
 	tcfg := &TaskConfig{
+		UserAgent:  c.UserAgent,
 		Clean:      c.Overwrite,
 		MaxSpeed:   c.MaxSpeed,
 		Progress:   c.Progress,
@@ -88,7 +89,6 @@ func singleDn(c *Config, cwd string) {
 }
 
 func main() {
-	runtime.GOMAXPROCS(4)
 	c := NewConfig()
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -97,7 +97,7 @@ func main() {
 
 	if c.Server != "" {
 		mux := http.NewServeMux()
-		bindHandler(mux)
+		bindHandler(mux, c.UserAgent)
 		err := http.ListenAndServe(c.Server, mux)
 		if err != nil {
 			logex.Fatal(err)
