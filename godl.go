@@ -11,7 +11,7 @@ import (
 )
 
 type Config struct {
-	UserAgent string   `flag:"u;def=curl;usage=user agent"`
+	UserAgent string   `flag:"ua;def=curl;usage=user agent"`
 	Proxy     []string `flag:"p;usage=proxy"`
 	Server    string   `flag:"s;usage=godl will enter server mode if specified listen addr with -s"`
 	Overwrite bool     `flag:"f;usage=overwritten if file is exists, false mean resume the progress from the meta file"`
